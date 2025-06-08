@@ -3,6 +3,7 @@ import os
 from youtube import YouTubeSearcher
 from gemini import KeyConceptExtractor
 from stringextractor import StringExtractor
+from hash_check import PDFDuplicateChecker
 
 def main():
     st.set_page_config(page_title="StudyBud", page_icon="📚", layout="wide")
@@ -34,17 +35,40 @@ def main():
             temp_path = f"temp_{uploaded_file.name}"
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            with st.spinner("Extracting key concepts from PDF..."):
-                try:
-                    concepts_text = concept_extractor.extract_from_pdf(temp_path)
-                    extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
-                    if extracted_concepts:
-                        st.session_state.concepts = extracted_concepts
-                        st.session_state.concepts_text = concepts_text
-                        st.success("Concepts extracted!")
-                    os.remove(temp_path)
-                except Exception as e:
-                    st.error(f"Error processing PDF: {e}")
+            
+            # Get the file bytes for hash checking
+            with open(temp_path, "rb") as f:
+                file_bytes = f.read()
+            
+            # Initialize the duplicate checker
+            duplicate_checker = PDFDuplicateChecker()
+            
+            # Check if the file is a duplicate
+            is_duplicate, existing_concepts = duplicate_checker.check_and_store_key_concepts(file_bytes, [])
+            
+            if is_duplicate and existing_concepts:
+                st.info("This PDF has been processed before. Using stored key concepts.")
+                st.session_state.concepts = existing_concepts
+                st.session_state.concepts_text = ", ".join(existing_concepts)
+                st.success("Concepts retrieved!")
+            else:
+                with st.spinner("Extracting key concepts from PDF..."):
+                    try:
+                        concepts_text = concept_extractor.extract_from_pdf(temp_path)
+                        extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
+                        if extracted_concepts:
+                            # Store the key concepts in the database
+                            duplicate_checker.store_key_concepts(file_bytes, extracted_concepts)
+                            
+                            st.session_state.concepts = extracted_concepts
+                            st.session_state.concepts_text = concepts_text
+                            st.success("Concepts extracted!")
+                    except Exception as e:
+                        st.error(f"Error processing PDF: {e}")
+            
+            duplicate_checker.close()
+            # Clean up the temporary file
+            os.remove(temp_path)
 
     with tab2:
         user_text = st.text_area("Enter text to analyze", height=150)
