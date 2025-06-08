@@ -112,11 +112,13 @@ def main():
             concept_count = len(st.session_state.concepts)
             
             # Add option to specify how many concepts to edit
+            # Make sure the value doesn't exceed the max_value (20)
+            default_count = min(max(concept_count, 1), 20)
             new_concept_count = st.number_input(
                 "Number of concepts", 
                 min_value=1, 
                 max_value=20, 
-                value=max(concept_count, 1)
+                value=default_count
             )
             
             # Adjust the concept list if count changed
