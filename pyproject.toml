@@ -1,0 +1,11 @@
+[project]
+name = "studybud"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google-genai>=1.19.0",
+    "setuptools>=80.9.0",
+    "yt-dlp>=2025.5.22",
+]
