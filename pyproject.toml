@@ -8,4 +8,5 @@ dependencies = [
     "google-genai>=1.19.0",
     "setuptools>=80.9.0",
     "yt-dlp>=2025.5.22",
+    "streamlit>=1.35.0",
 ]
