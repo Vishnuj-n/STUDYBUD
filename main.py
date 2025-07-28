@@ -107,11 +107,20 @@ def main():
     if concepts:
         st.subheader("📋 Key Concepts")
 
-        cols = st.columns(len(concepts))
-        for i, concept in enumerate(concepts):
-            with cols[i]:
-                if st.button(f"❌ {concept}", key=f"remove_{i}"):
-                    st.session_state.concepts.pop(i)
+        # Define a fixed number of columns for a grid layout
+        num_columns = 4
+        cols = st.columns(num_columns)
+        
+        # Create a copy to iterate over, as we might modify the list
+        concepts_to_display = concepts[:]
+        
+        for i, concept in enumerate(concepts_to_display):
+            # Distribute concepts into columns
+            with cols[i % num_columns]:
+                # use_container_width makes the button fill the column
+                if st.button(f"❌ {concept}", key=f"remove_{concept}_{i}", use_container_width=True):
+                    # Remove the concept from the original list in session_state
+                    st.session_state.concepts.remove(concept)
                     st.experimental_rerun()
 
         if st.button("Find YouTube Videos"):
