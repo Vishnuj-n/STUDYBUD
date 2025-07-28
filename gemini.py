@@ -2,15 +2,17 @@ import os
 import pathlib
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
 
 
 class KeyConceptExtractor:
     def __init__(self, api_key_env: str = "GEMINI_API_KEY"):
-        api_key = os.environ.get(api_key_env)
+        load_dotenv()
+        api_key = os.getenv(api_key_env)
         if not api_key:
             raise ValueError(f"API key not found in environment variable '{api_key_env}'")
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.0-flash"
+        self.model = "gemini-2.5-flash"
         self.default_prompt = (
             "Identify the key concepts discussed in this document. Present them as a Python list of strings. "
             "For example: the key concepts are: ['Concept 1', 'Concept 2', 'Concept 3']"
