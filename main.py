@@ -16,41 +16,36 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
         with open(temp_path, "rb") as f:
             file_bytes = f.read()
 
-        duplicate_checker = PDFDuplicateChecker()
-        file_hash = duplicate_checker.compute_hash(file_bytes)
+        with PDFDuplicateChecker() as duplicate_checker:
+            file_hash = duplicate_checker.compute_hash(file_bytes)
 
-        if st.session_state.get('current_file_hash') == file_hash:
-            return
+            if st.session_state.get('current_file_hash') == file_hash:
+                return
 
-        # Reset state for the new file
-        st.session_state.current_file_hash = file_hash
-        st.session_state.concepts = []
-        st.session_state.video_results = None
+            # Reset state for the new file
+            st.session_state.current_file_hash = file_hash
+            st.session_state.concepts = []
+            st.session_state.video_results = None
 
-        is_duplicate, existing_concepts = duplicate_checker.check_and_store_key_concepts(file_bytes, [])
-        
-        video_storage = VideoStorage()
-        
-        if is_duplicate and existing_concepts:
-            st.info("This PDF has been processed before. Using stored key concepts.")
-            st.session_state.concepts = existing_concepts
+            is_duplicate, existing_concepts = duplicate_checker.check_and_store_key_concepts(file_bytes, [])
             
-            # Automatically load and display existing videos
-            existing_videos = video_storage.get_videos_for_file(file_hash)
-            if existing_videos:
-                st.info("Found and loaded previously saved YouTube videos for this document.")
-                st.session_state.video_results = existing_videos
-        else:
-            with st.spinner("Extracting key concepts from PDF..."):
-                concepts_text = concept_extractor.extract_from_pdf(temp_path)
-                extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
-                if extracted_concepts:
-                    duplicate_checker.store_key_concepts(file_bytes, extracted_concepts)
-                    st.session_state.concepts = extracted_concepts
-                    st.success("Concepts extracted!")
-        
-        duplicate_checker.close()
-        video_storage.close()
+            if is_duplicate and existing_concepts:
+                st.info("This PDF has been processed before. Using stored key concepts.")
+                st.session_state.concepts = existing_concepts
+                
+                with VideoStorage() as video_storage:
+                    existing_videos = video_storage.get_videos_for_file(file_hash)
+                if existing_videos:
+                    st.info("Found and loaded previously saved YouTube videos for this document.")
+                    st.session_state.video_results = existing_videos
+            else:
+                with st.spinner("Extracting key concepts from PDF..."):
+                    concepts_text = concept_extractor.extract_from_pdf(temp_path)
+                    extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
+                    if extracted_concepts:
+                        duplicate_checker.store_key_concepts(file_bytes, extracted_concepts)
+                        st.session_state.concepts = extracted_concepts
+                        st.success("Concepts extracted!")
 
     except Exception as e:
         st.error(f"An error occurred during PDF processing: {e}")

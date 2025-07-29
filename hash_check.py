@@ -5,8 +5,18 @@ import sqlite3
 class PDFDuplicateChecker:
     def __init__(self, db_path: str = "file_hashes.db"):
         self.db_path = db_path
+        self.conn = None
+
+    def __enter__(self):
+        """Enable the use of 'with' statement for safe connection handling."""
         self.conn = sqlite3.connect(self.db_path)
         self._create_table()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure the database connection is closed on exit."""
+        if self.conn:
+            self.conn.close()
 
     def _create_table(self):
         with self.conn:
@@ -97,6 +107,11 @@ class PDFDuplicateChecker:
                     (file_hash, key_concepts_str)
                 )
             return (False, [])
+
+    def close(self):
+        """Close the database connection."""
+        if self.conn:
+            self.conn.close()
 
     def close(self):
         """Close the database connection."""
