@@ -101,7 +101,7 @@ def display_video_results(video_results):
 def main():
     st.set_page_config(page_title="StudyBud", page_icon="📚", layout="wide")
     st.title("📚 StudyBud: Learn from PDFs with AI")
-    st.markdown("Upload a PDF or enter text to extract key concepts and explore related YouTube videos")
+    st.markdown("Upload a PDF to extract key concepts and explore related YouTube videos")
 
     # Initialize session state variables
     for key, default_value in [
@@ -132,28 +132,12 @@ def main():
     string_extractor = st.session_state.string_extractor
     youtube_searcher = st.session_state.youtube_searcher
 
-    tab1, tab2 = st.tabs(["📄 Upload PDF", "✏️ Enter Text"])
+    # --- Main App Layout ---
+    uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+    if uploaded_file:
+        handle_pdf_upload(uploaded_file, concept_extractor, string_extractor)
 
-    with tab1:
-        uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
-        if uploaded_file:
-            handle_pdf_upload(uploaded_file, concept_extractor, string_extractor)
 
-    with tab2:
-        user_text = st.text_area("Enter text to analyze", height=150)
-        if user_text and st.button("Extract Concepts"):
-            with st.spinner("Extracting key concepts from text..."):
-                try:
-                    concepts_text = concept_extractor.extract_from_text(user_text)
-                    extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
-                    if extracted_concepts:
-                        st.session_state.concepts = extracted_concepts
-                        st.session_state.current_file_hash = None
-                        st.session_state.video_results = None
-                        st.session_state.num_videos_to_show = 4 # Reset
-                        st.success("Concepts extracted!")
-                except Exception as e:
-                    st.error(f"Error processing text: {e}")
 
     if st.session_state.concepts:
         st.subheader("📋 Key Concepts")
