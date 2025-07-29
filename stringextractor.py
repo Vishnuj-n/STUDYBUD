@@ -16,7 +16,8 @@ class StringExtractor:
     
     def extract_list_from_string(self, text: str) -> List[str]:
         """
-        Extract a Python list from a string containing code blocks or direct list notation.
+        Extract a Python list from a string containing code blocks, direct list notation,
+        or natural language lists.
         
         Args:
             text (str): The input string that may contain a Python list
@@ -31,6 +32,11 @@ class StringExtractor:
         
         # If not found in code blocks, try direct list pattern
         extracted_list = self._extract_from_direct_list(text)
+        if extracted_list is not None:
+            return extracted_list
+
+        # If not found in the above, try natural language list pattern
+        extracted_list = self._extract_from_natural_language_list(text)
         if extracted_list is not None:
             return extracted_list
 
@@ -75,5 +81,29 @@ class StringExtractor:
             return cleaned_items
         
         return None
+
+    def _extract_from_natural_language_list(self, text: str) -> Optional[List[str]]:
+        """Extract list from natural language text (numbered or bulleted)."""
+        # This regex splits the string by list markers (e.g., "1. ", "- ", "* ").
+        splitter = re.compile(r'\s*(?:\d+\.|\*|-)\s*')
+        
+        # Don't process if no markers are found
+        if not splitter.search(text):
+            return None
+
+        potential_items = splitter.split(text)
+        
+        # Filter out empty strings that result from splitting, and strip whitespace.
+        items = [item.strip() for item in potential_items if item.strip()]
+        
+        # Clean up items by removing trailing punctuation that might be part of the sentence structure.
+        cleaned_items = []
+        for item in items:
+            # Remove trailing dots or ellipses, but not other punctuation like '!'
+            cleaned_item = re.sub(r'\.{1,3}\s*$', '', item).strip()
+            if cleaned_item:
+                cleaned_items.append(cleaned_item)
+                
+        return cleaned_items if cleaned_items else None
 
 
