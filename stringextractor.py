@@ -14,7 +14,7 @@ class StringExtractor:
         self._direct_list_pattern = r"\[([\s\S]*?)\]"
         self._item_pattern = r'["\'](.*?)["\']'
     
-    def extract_list_from_string(self, text: str) -> Optional[List[str]]:
+    def extract_list_from_string(self, text: str) -> List[str]:
         """
         Extract a Python list from a string containing code blocks or direct list notation.
         
@@ -22,15 +22,19 @@ class StringExtractor:
             text (str): The input string that may contain a Python list
         
         Returns:
-            list: The extracted list of items, or None if no list is found
+            list: The extracted list of items, or an empty list if no list is found.
         """
         # First try to extract from code blocks
         extracted_list = self._extract_from_code_blocks(text)
-        if extracted_list:
+        if extracted_list is not None:
             return extracted_list
         
         # If not found in code blocks, try direct list pattern
-        return self._extract_from_direct_list(text)
+        extracted_list = self._extract_from_direct_list(text)
+        if extracted_list is not None:
+            return extracted_list
+
+        return []
     
     def _extract_from_code_blocks(self, text: str) -> Optional[List[str]]:
         """Extract list from Python code blocks in the text."""
@@ -47,11 +51,28 @@ class StringExtractor:
     
     def _extract_from_direct_list(self, text: str) -> Optional[List[str]]:
         """Extract list from direct list notation in the text."""
-        direct_matches = re.findall(self._direct_list_pattern, text)
+        match = re.search(self._direct_list_pattern, text)
         
-        if direct_matches:
-            items = re.findall(self._item_pattern, direct_matches[0])
-            return items
+        if match:
+            list_content = match.group(1)
+            if not list_content.strip():
+                return []
+            
+            # Split by comma, then clean up each item
+            items = list_content.split(',')
+            
+            cleaned_items = []
+            for item in items:
+                # Remove leading/trailing whitespace
+                item = item.strip()
+                # Remove potential list markers like "1.", "-", "*"
+                item = re.sub(r'^\s*(\d+\.|\*|-)\s*', '', item)
+                # Remove surrounding quotes
+                item = re.sub(r'^["\']|["\']$', '', item)
+                # Add to list if not empty
+                if item:
+                    cleaned_items.append(item)
+            return cleaned_items
         
         return None
 
