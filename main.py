@@ -26,6 +26,7 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
             st.session_state.current_file_hash = file_hash
             st.session_state.concepts = []
             st.session_state.video_results = None
+            st.session_state.num_videos_to_show = 4 # Reset video count
 
             is_duplicate, existing_concepts = duplicate_checker.check_and_store_key_concepts(file_bytes, [])
             
@@ -33,8 +34,7 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
                 st.info("This PDF has been processed before. Using stored key concepts.")
                 st.session_state.concepts = existing_concepts
                 
-                with VideoStorage() as video_storage:
-                    existing_videos = video_storage.get_videos_for_file(file_hash)
+                existing_videos = get_cached_videos(file_hash)
                 if existing_videos:
                     st.info("Found and loaded previously saved YouTube videos for this document.")
                     st.session_state.video_results = existing_videos
@@ -53,8 +53,14 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
+@st.cache_data
+def get_cached_videos(file_hash):
+    """Wrapper to cache database calls for videos."""
+    with VideoStorage() as vs:
+        return vs.get_videos_for_file(file_hash)
+
 def display_video_results(video_results):
-    """Displays video results in a structured layout."""
+    """Displays video results with a 'Load More' button."""
     st.subheader("🎬 Study Resources")
     for concept, videos in video_results.items():
         st.markdown(f"**{concept}**")
@@ -63,13 +69,34 @@ def display_video_results(video_results):
 
     st.markdown("---")
     st.subheader("📺 Watch Videos")
-    for concept, videos in video_results.items():
+
+    # Flatten all videos to manage display count easily
+    all_videos_flat = [(concept, video) for concept, videos in video_results.items() for video in videos]
+    
+    num_to_show = st.session_state.get('num_videos_to_show', 4)
+    videos_to_display = all_videos_flat[:num_to_show]
+
+    # Display videos grouped by concept
+    displayed_videos_by_concept = {}
+    for concept, video in videos_to_display:
+        if concept not in displayed_videos_by_concept:
+            displayed_videos_by_concept[concept] = []
+        displayed_videos_by_concept[concept].append(video)
+
+    for concept, videos in displayed_videos_by_concept.items():
         st.markdown(f"### {concept}")
         if videos:
-            video_cols = st.columns(len(videos))
+            # Create columns with a max of 4 per row for better layout
+            cols = st.columns(min(len(videos), 4))
             for i, video in enumerate(videos):
-                with video_cols[i]:
+                with cols[i % 4]:
                     st.video(video['url'])
+    
+    # 'Load More' button logic
+    if len(all_videos_flat) > num_to_show:
+        if st.button("Load More Videos"):
+            st.session_state.num_videos_to_show += 4
+            st.rerun()
 
 def main():
     st.set_page_config(page_title="StudyBud", page_icon="📚", layout="wide")
@@ -81,7 +108,8 @@ def main():
         ('concepts', []),
         ('current_file_hash', None),
         ('video_results', None),
-        ('extractors_loaded', False)
+        ('extractors_loaded', False),
+        ('num_videos_to_show', 4)
     ]:
         if key not in st.session_state:
             st.session_state[key] = default_value
@@ -122,6 +150,7 @@ def main():
                         st.session_state.concepts = extracted_concepts
                         st.session_state.current_file_hash = None
                         st.session_state.video_results = None
+                        st.session_state.num_videos_to_show = 4 # Reset
                         st.success("Concepts extracted!")
                 except Exception as e:
                     st.error(f"Error processing text: {e}")
@@ -136,7 +165,8 @@ def main():
                 if st.button(f"❌ {concept}", key=f"remove_{concept}_{i}", use_container_width=True):
                     st.session_state.concepts.remove(concept)
                     st.session_state.video_results = None  # Invalidate video results
-                    st.experimental_rerun()
+                    st.session_state.num_videos_to_show = 4 # Reset
+                    st.rerun()
 
         if st.button("Find YouTube Videos"):
             if not st.session_state.video_results:
@@ -145,13 +175,12 @@ def main():
                     st.session_state.video_results = video_results
                     
                     if st.session_state.current_file_hash:
-                        video_storage = VideoStorage()
-                        video_storage.store_videos_for_file(
-                            st.session_state.current_file_hash,
-                            video_results,
-                            filename=uploaded_file.name if 'uploaded_file' in locals() else None
-                        )
-                        video_storage.close()
+                        with VideoStorage() as video_storage:
+                            video_storage.store_videos_for_file(
+                                st.session_state.current_file_hash,
+                                video_results,
+                                filename=uploaded_file.name if 'uploaded_file' in locals() else None
+                            )
     
     # Display videos if they exist in the session state
     if st.session_state.video_results:
