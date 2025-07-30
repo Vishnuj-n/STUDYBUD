@@ -50,7 +50,7 @@ c:\Users\vishn\PROJECT\STUDYBUD
    ```
 2. Install dependencies in pyproject.toml via `uv`:
    ```powershell
-   uv run pyproject.toml
+   uv sync
    ```
 
 ## Environment Variables
