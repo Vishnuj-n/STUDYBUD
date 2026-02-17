@@ -22,10 +22,20 @@ class KeyConceptExtractor:
         path = pathlib.Path(pdf_path)
         if not (path.exists() and path.suffix == ".pdf"):
             raise FileNotFoundError(f"Invalid PDF path: {pdf_path}")
+        
+        # Read PDF bytes
+        pdf_bytes = path.read_bytes()
+        
+        # Create Part objects properly using the types module
+        pdf_part = types.Part(
+            inline_data=types.Blob(
+                mime_type="application/pdf",
+                data=pdf_bytes
+            )
+        )
+        
+        # Send to Gemini API
         return self.client.models.generate_content(
             model=self.model,
-            contents=[
-                types.Part.from_bytes(path.read_bytes(), mime_type='application/pdf'),
-                self.prompt
-            ]
+            contents=[pdf_part, self.prompt]
         ).text

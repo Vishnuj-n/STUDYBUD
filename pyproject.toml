@@ -3,19 +3,20 @@ name = "studybud"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+
+requires-python = ">=3.11"
 dependencies = [
-    "google-genai>=1.19.0",
-    "setuptools>=80.9.0",
-    "yt-dlp>=2025.5.22",
-    "streamlit>=1.35.0",
-    "python-dotenv>=1.1.1",
+    "google-genai>=1.19,<2.0",
+    "setuptools>=80.9.0,<81.0.0",
+    "yt-dlp>=2026.01,<2027.0",
+    "streamlit>=1.35,<2.0",
+    "python-dotenv>=1.1.1,<2.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.1",
-    "pytest-mock>=3.14.1",
+    "pytest>=8.4,<9.0",
+    "pytest-mock>=3.14.1,<4.0.0",
 ]
 
 [tool.pytest.ini_options]

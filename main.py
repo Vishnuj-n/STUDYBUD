@@ -8,18 +8,34 @@ from video_storage import VideoStorage
 
 def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
     """Handles the processing of the uploaded PDF file."""
+    import time
     temp_path = f"temp_{uploaded_file.name}"
-    with open(temp_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
+    
+    # Progress tracking - placeholder for visual progress
+    progress_placeholder = st.empty()
+    progress_bar = progress_placeholder.progress(0, text="📖 Reading PDF file...")
+    
     try:
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        time.sleep(0.3)
+        progress_bar = progress_placeholder.progress(20, text="📖 Reading PDF file... ✓")
+        time.sleep(0.3)
+        progress_bar = progress_placeholder.progress(30, text="🔢 Computing file hash...")
+        time.sleep(0.3)
+
         with open(temp_path, "rb") as f:
             file_bytes = f.read()
 
         with PDFDuplicateChecker() as duplicate_checker:
             file_hash = duplicate_checker.compute_hash(file_bytes)
+            progress_bar = progress_placeholder.progress(40, text="🔢 Computing file hash... ✓")
+            time.sleep(0.3)
+            progress_bar = progress_placeholder.progress(50, text="🔍 Checking for duplicates...")
+            time.sleep(0.3)
 
             if st.session_state.get('current_file_hash') == file_hash:
+                progress_placeholder.empty()
                 return
 
             # Reset state for the new file
@@ -31,6 +47,8 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
             is_duplicate, existing_concepts = duplicate_checker.check_and_store_key_concepts(file_bytes, [])
             
             if is_duplicate and existing_concepts:
+                progress_bar = progress_placeholder.progress(70, text="💾 Loading cached concepts...")
+                time.sleep(0.3)
                 st.info("This PDF has been processed before. Using stored key concepts.")
                 st.session_state.concepts = existing_concepts
                 
@@ -38,18 +56,29 @@ def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
                 if existing_videos:
                     st.info("Found and loaded previously saved YouTube videos for this document.")
                     st.session_state.video_results = existing_videos
+                progress_bar = progress_placeholder.progress(100, text="✅ Complete!")
+                time.sleep(0.5)
+                progress_placeholder.empty()
             else:
-                with st.spinner("Extracting key concepts from PDF..."):
-                    concepts_text = concept_extractor.extract_from_pdf(temp_path)
-                    extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
-                    if extracted_concepts:
-                        duplicate_checker.store_key_concepts(file_bytes, extracted_concepts)
-                        st.session_state.concepts = extracted_concepts
-                        st.success("Concepts extracted!")
+                progress_bar = progress_placeholder.progress(60, text="🤖 Extracting key concepts...")
+                time.sleep(0.3)
+                concepts_text = concept_extractor.extract_from_pdf(temp_path)
+                extracted_concepts = string_extractor.extract_list_from_string(concepts_text)
+                if extracted_concepts:
+                    progress_bar = progress_placeholder.progress(85, text="💾 Storing concepts...")
+                    time.sleep(0.3)
+                    duplicate_checker.store_key_concepts(file_bytes, extracted_concepts)
+                    st.session_state.concepts = extracted_concepts
+                    progress_bar = progress_placeholder.progress(100, text="✅ Complete!")
+                    time.sleep(0.5)
+                    progress_placeholder.empty()
+                    st.success("Concepts extracted!")
 
     except Exception as e:
+        progress_placeholder.empty()
         st.error(f"An error occurred during PDF processing: {e}")
     finally:
+        progress_placeholder.empty()
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
@@ -102,6 +131,28 @@ def main():
     st.set_page_config(page_title="StudyBud", page_icon="📚", layout="wide")
     st.title("📚 StudyBud: Learn from PDFs with AI")
     st.markdown("Upload a PDF to extract key concepts and explore related YouTube videos")
+
+    # --- Sidebar Settings ---
+    with st.sidebar:
+        st.title("⚙️ Settings")
+        if st.button("🔑 Check Gemini API Key", use_container_width=True):
+            try:
+                with st.spinner("Sending test message to Gemini..."):
+                    extractor = KeyConceptExtractor()
+                    response = extractor.client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents="Test message. Reply with 'OK' if you receive this."
+                    )
+                    if response and response.text:
+                        st.success(f"✅ Gemini API key is valid!\nResponse: {response.text[:80]}")
+                    else:
+                        st.error("API key works but received empty response")
+            except Exception as e:
+                st.error(f"❌ API key check failed: {str(e)}")
+        st.divider()
+
+    # --- Gemini API Key Check (removed from main, now in sidebar) ---
+
 
     # Initialize session state variables
     for key, default_value in [
