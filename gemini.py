@@ -25,7 +25,7 @@ class KeyConceptExtractor:
         return self.client.models.generate_content(
             model=self.model,
             contents=[
-                types.Part.from_bytes(path.read_bytes(), mime_type='application/pdf'),
+                types.Part.from_bytes(data=path.read_bytes(), mime_type='application/pdf'),
                 self.prompt
             ]
         ).text
