@@ -6,6 +6,45 @@ from stringextractor import StringExtractor
 from hash_check import PDFDuplicateChecker
 from video_storage import VideoStorage
 
+def parse_and_validate_concepts(text: str, max_concepts: int = 50) -> tuple[list, str]:
+    """
+    Parse and validate concepts from comma-separated text.
+    
+    Args:
+        text: Comma-separated concept string
+        max_concepts: Maximum allowed number of concepts
+        
+    Returns:
+        tuple: (concepts_list, error_message) - error_message is empty if valid
+    """
+    try:
+        # Split by comma and clean up
+        raw_concepts = text.split(',')
+        concepts = [c.strip() for c in raw_concepts if c.strip()]
+        
+        # Validation checks
+        if not concepts:
+            return [], "❌ No concepts provided. Please enter at least one concept."
+        
+        if len(concepts) > max_concepts:
+            return [], f"❌ Too many concepts ({len(concepts)}). Maximum allowed: {max_concepts}"
+        
+        # Validate each concept
+        for i, concept in enumerate(concepts, 1):
+            if len(concept) < 2:
+                return [], f"❌ Concept #{i} is too short: '{concept}' (minimum 2 characters)"
+            if len(concept) > 100:
+                return [], f"❌ Concept #{i} is too long: '{concept}' (maximum 100 characters)"
+        
+        # Check for duplicates
+        if len(concepts) != len(set(concepts)):
+            return [], "❌ Duplicate concepts found. Please remove duplicates."
+        
+        return concepts, ""
+    
+    except Exception as e:
+        return [], f"❌ Error parsing concepts: {str(e)}"
+
 def handle_pdf_upload(uploaded_file, concept_extractor, string_extractor):
     """Handles the processing of the uploaded PDF file."""
     temp_path = f"temp_{uploaded_file.name}"
@@ -150,6 +189,38 @@ def main():
                     st.session_state.concepts.remove(concept)
                     st.session_state.video_results = None  # Invalidate video results
                     st.session_state.num_videos_to_show = 4 # Reset
+                    st.rerun()
+
+        # Bulk Edit Section
+        with st.expander("✏️ Edit All Concepts (Bulk Edit)", expanded=False):
+            st.markdown("**Edit concepts below (comma-separated):**")
+            concepts_text = ", ".join(st.session_state.concepts)
+            
+            edited_concepts_text = st.text_area(
+                "Concepts:",
+                value=concepts_text,
+                height=120,
+                placeholder="e.g., Concept 1, Concept 2, Concept 3",
+                label_visibility="collapsed"
+            )
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("💾 Save Changes", use_container_width=True):
+                    validated_concepts, error_msg = parse_and_validate_concepts(edited_concepts_text, max_concepts=50)
+                    
+                    if error_msg:
+                        st.error(error_msg)
+                    else:
+                        st.session_state.concepts = validated_concepts
+                        st.session_state.video_results = None  # Invalidate video results
+                        st.session_state.num_videos_to_show = 4  # Reset
+                        st.success(f"✅ Updated! {len(validated_concepts)} concepts saved.")
+                        st.rerun()
+            
+            with col2:
+                if st.button("🔄 Reset", use_container_width=True):
                     st.rerun()
 
         if st.button("Find YouTube Videos"):
